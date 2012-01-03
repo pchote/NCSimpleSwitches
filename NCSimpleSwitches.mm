@@ -5,8 +5,9 @@
 #import <AVFoundation/AVFoundation.h>
 #import "SBOrientationLockManager.h"
 #import "SBWifiManager.h"
-
+#import "BluetoothManager.h"
 #import <objc/runtime.h>
+
 @interface ButtonTestController : NSObject <BBWeeAppController>
 {
     UIView *_view;
@@ -14,6 +15,7 @@
     NCSwitch *flashlightSwitch;
     NCSwitch *orientationSwitch;
     NCSwitch *wifiSwitch;
+    NCSwitch *bluetoothSwitch;
 }
 
 + (void)initialize;
@@ -33,35 +35,46 @@
     [flashlightSwitch release];
     [orientationSwitch release];
     [wifiSwitch release];
+    [bluetoothSwitch release];
     [_view release];
     [super dealloc];
 }
+
+CGSize margin = CGSizeMake(20, 4);
+CGSize ss = CGSizeMake(74, 29);
 
 - (UIView *)view 
 {
     if (_view == nil)
     {
-        _view = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 320, 30)];
+        _view = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 320, [self viewHeight])];
         _view.autoresizingMask = UIViewAutoresizingFlexibleWidth;
 
-        CGSize ss = CGSizeMake(74, 29);
+
         // Flashlight
-        flashlightSwitch = [[NCSwitch alloc] initWithFrame:CGRectMake(20, 0, ss.width, ss.height) thumbImage: [UIImage imageWithContentsOfFile:@"/System/Library/WeeAppPlugins/ButtonTest.bundle/icon_torch.png"]];
+        flashlightSwitch = [[NCSwitch alloc] initWithFrame:CGRectMake(margin.width, 3*margin.height+29, ss.width, ss.height) thumbImage: [UIImage imageWithContentsOfFile:@"/System/Library/WeeAppPlugins/NCSimpleSwitches.bundle/icon_torch.png"]];
         flashlightSwitch.autoresizingMask = UIViewAutoresizingFlexibleRightMargin;
         [flashlightSwitch addTarget:self action: @selector(flashlightButtonSwitched:) forControlEvents:UIControlEventValueChanged];
         [_view addSubview:flashlightSwitch];
 
         // Orientation Lock
-        orientationSwitch = [[NCSwitch alloc] initWithFrame:CGRectMake(160 - ss.width/2, 0, ss.width, ss.height) thumbImage: [UIImage imageWithContentsOfFile:@"/System/Library/WeeAppPlugins/ButtonTest.bundle/icon_rotate.png"]];
+        orientationSwitch = [[NCSwitch alloc] initWithFrame:CGRectMake(160 - ss.width/2, margin.height, ss.width, ss.height) thumbImage: [UIImage imageWithContentsOfFile:@"/System/Library/WeeAppPlugins/NCSimpleSwitches.bundle/icon_rotate.png"]];
         orientationSwitch.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin;
         [orientationSwitch addTarget:self action: @selector(orientationButtonSwitched:) forControlEvents:UIControlEventValueChanged];
         [_view addSubview:orientationSwitch];
-        
+
         // Enable Wifi
-        wifiSwitch = [[NCSwitch alloc] initWithFrame:CGRectMake(320 - ss.width - 20, 0, ss.width, ss.height) thumbImage: [UIImage imageWithContentsOfFile:@"/System/Library/WeeAppPlugins/ButtonTest.bundle/icon_wifi.png"]];
+        wifiSwitch = [[NCSwitch alloc] initWithFrame:CGRectMake(320 - ss.width - margin.width, margin.height, ss.width, ss.height) thumbImage: [UIImage imageWithContentsOfFile:@"/System/Library/WeeAppPlugins/NCSimpleSwitches.bundle/icon_wifi.png"]];
         wifiSwitch.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin;
         [wifiSwitch addTarget:self action: @selector(wifiButtonSwitched:) forControlEvents:UIControlEventValueChanged];
         [_view addSubview:wifiSwitch];
+
+        // Bluetooth
+        bluetoothSwitch = [[NCSwitch alloc] initWithFrame:CGRectMake(margin.width, margin.height, ss.width, ss.height) thumbImage: [UIImage imageWithContentsOfFile:@"/System/Library/WeeAppPlugins/NCSimpleSwitches.bundle/icon_bluetooth.png"]];
+        bluetoothSwitch.autoresizingMask = UIViewAutoresizingFlexibleRightMargin;
+        [bluetoothSwitch addTarget:self action: @selector(bluetoothButtonSwitched:) forControlEvents:UIControlEventValueChanged];
+        [_view addSubview:bluetoothSwitch];
+
         [wifiSwitch release];
     }
     
@@ -106,19 +119,22 @@
     [[objc_getClass("SBWiFiManager") sharedInstance] setWiFiEnabled:[(NCSwitch *)sender isOn]];
 }
 
+- (void)bluetoothButtonSwitched:(id)sender
+{
+    [(BluetoothManager *)[objc_getClass("BluetoothManager") sharedInstance] setEnabled:[(NCSwitch *)sender isOn]];
+}
+
 
 - (void)viewDidAppear
 {
     [wifiSwitch setOn:[[objc_getClass("SBWiFiManager") sharedInstance] wiFiEnabled] animated:NO];
     [orientationSwitch setOn:[[objc_getClass("SBOrientationLockManager") sharedInstance] isLocked] animated:NO];
-
-    //NSNumber *val = (NSNumber*)CFPreferencesCopyAppValue(CFSTR("SBBacklightLevel2" ), CFSTR("com.apple.springboard"));
-    //slider.value = [val floatValue];
+    [bluetoothSwitch setOn:[[objc_getClass("BluetoothManager") sharedInstance] enabled] animated:NO];
 }
 
 - (float)viewHeight
 {
-    return 30.0f;
+    return 2*29 + 4*margin.height;
 }
 
 @end
