@@ -1,0 +1,11 @@
+Name: Simple Switches Widget
+Package: net.chote.paul.ncsimpleswitches
+Priority: optional
+Depends: firmware (>= 5.0)
+Version: 1.0.0-1
+Architecture: iphoneos-arm
+Description: Adds feature switches to the Notification Center
+Maintainer: Paul Chote <paul@chote.net>
+Author: Paul Chote <paul@chote.net>
+Section: Addons (NotificationCenter)
+Installed-Size: 32
