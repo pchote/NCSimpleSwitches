@@ -80,7 +80,7 @@ CGSize ss = CGSizeMake(74, 29);
 
         // Airplane mode
         airplaneSwitch = [[NCSwitch alloc] initWithFrame:CGRectMake(160 - ss.width/2, 3*margin.height+29, ss.width, ss.height) thumbImage: [UIImage imageWithContentsOfFile:@"/System/Library/WeeAppPlugins/NCSimpleSwitches.bundle/icon_airplane.png"]];
-        airplaneSwitch.autoresizingMask = UIViewAutoresizingFlexibleRightMargin;
+        airplaneSwitch.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin;
         [airplaneSwitch addTarget:self action: @selector(airplaneButtonSwitched:) forControlEvents:UIControlEventValueChanged];
         [_view addSubview:airplaneSwitch];
     }
@@ -134,6 +134,8 @@ CGSize ss = CGSizeMake(74, 29);
 - (void)airplaneButtonSwitched:(id)sender
 {
     [[objc_getClass("SBTelephonyManager") sharedTelephonyManager] setIsInAirplaneMode:[(NCSwitch *)sender isOn]];
+    [wifiSwitch setOn:[[objc_getClass("SBWiFiManager") sharedInstance] wiFiEnabled] animated:YES];
+    [bluetoothSwitch setOn:[[objc_getClass("BluetoothManager") sharedInstance] enabled] animated:YES];
 }
 
 
