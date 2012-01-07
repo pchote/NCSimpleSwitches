@@ -11,12 +11,17 @@
 
 @interface ButtonTestController : NSObject <BBWeeAppController>
 {
-    UIView *_view;
+    UIView *mainView;
     NCSwitch *flashlightSwitch;
     NCSwitch *orientationSwitch;
     NCSwitch *wifiSwitch;
     NCSwitch *bluetoothSwitch;
     NCSwitch *airplaneSwitch;
+
+    SBOrientationLockManager *orientationLockManager;
+    SBWiFiManager *wifiManager;
+    BluetoothManager *bluetoothManager;
+    SBTelephonyManager *telephonyManager;
 }
 
 + (void)initialize;
@@ -26,31 +31,23 @@
 
 @implementation ButtonTestController
 
-+ (void)initialize
-{
-    
-}
-
-- (void)dealloc
-{
-    [orientationSwitch release];
-    [wifiSwitch release];
-    [bluetoothSwitch release];
-    [airplaneSwitch release];
-    [_view release];
-    [super dealloc];
-}
-
 CGSize margin = CGSizeMake(20, 4);
 CGSize ss = CGSizeMake(74, 29);
 
++ (void)initialize {}
+- (float)viewHeight { return 2*29 + 4*margin.height; }
 - (UIView *)view 
 {
-    if (_view == nil)
-    {
-        _view = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 320, [self viewHeight])];
-        _view.autoresizingMask = UIViewAutoresizingFlexibleWidth;
 
+    if (mainView == nil)
+    {
+        orientationLockManager = [objc_getClass("SBOrientationLockManager") sharedInstance];
+        wifiManager = [objc_getClass("SBWiFiManager") sharedInstance];
+        bluetoothManager = [objc_getClass("BluetoothManager") sharedInstance];
+        telephonyManager = [objc_getClass("SBTelephonyManager") sharedTelephonyManager];
+
+        mainView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 320, [self viewHeight])];
+        mainView.autoresizingMask = UIViewAutoresizingFlexibleWidth;
 
         // Flashlight
         {
@@ -61,7 +58,7 @@ CGSize ss = CGSizeMake(74, 29);
                 flashlightSwitch = [[NCSwitch alloc] initWithFrame:CGRectMake(margin.width, margin.height, ss.width, ss.height) thumbImage: [UIImage imageWithContentsOfFile:@"/System/Library/WeeAppPlugins/NCSimpleSwitches.bundle/icon_torch.png"]];
                 flashlightSwitch.autoresizingMask = UIViewAutoresizingFlexibleRightMargin;
                 [flashlightSwitch addTarget:self action: @selector(flashlightButtonSwitched:) forControlEvents:UIControlEventValueChanged];
-                [_view addSubview:flashlightSwitch];
+                [mainView addSubview:flashlightSwitch];
             }
         }
 
@@ -69,28 +66,46 @@ CGSize ss = CGSizeMake(74, 29);
         orientationSwitch = [[NCSwitch alloc] initWithFrame:CGRectMake(160 - ss.width/2, margin.height, ss.width, ss.height) thumbImage: [UIImage imageWithContentsOfFile:@"/System/Library/WeeAppPlugins/NCSimpleSwitches.bundle/icon_rotate.png"]];
         orientationSwitch.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin;
         [orientationSwitch addTarget:self action: @selector(orientationButtonSwitched:) forControlEvents:UIControlEventValueChanged];
-        [_view addSubview:orientationSwitch];
+        [mainView addSubview:orientationSwitch];
 
         // Enable Wifi
         wifiSwitch = [[NCSwitch alloc] initWithFrame:CGRectMake(320 - ss.width - margin.width, margin.height, ss.width, ss.height) thumbImage: [UIImage imageWithContentsOfFile:@"/System/Library/WeeAppPlugins/NCSimpleSwitches.bundle/icon_wifi.png"]];
         wifiSwitch.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin;
         [wifiSwitch addTarget:self action: @selector(wifiButtonSwitched:) forControlEvents:UIControlEventValueChanged];
-        [_view addSubview:wifiSwitch];
+        [mainView addSubview:wifiSwitch];
 
         // Bluetooth
         bluetoothSwitch = [[NCSwitch alloc] initWithFrame:CGRectMake(margin.width, 3*margin.height+29, ss.width, ss.height) thumbImage: [UIImage imageWithContentsOfFile:@"/System/Library/WeeAppPlugins/NCSimpleSwitches.bundle/icon_bluetooth.png"]];
         bluetoothSwitch.autoresizingMask = UIViewAutoresizingFlexibleRightMargin;
         [bluetoothSwitch addTarget:self action: @selector(bluetoothButtonSwitched:) forControlEvents:UIControlEventValueChanged];
-        [_view addSubview:bluetoothSwitch];
+        [mainView addSubview:bluetoothSwitch];
 
         // Airplane mode
         airplaneSwitch = [[NCSwitch alloc] initWithFrame:CGRectMake(160 - ss.width/2, 3*margin.height+29, ss.width, ss.height) thumbImage: [UIImage imageWithContentsOfFile:@"/System/Library/WeeAppPlugins/NCSimpleSwitches.bundle/icon_airplane.png"]];
         airplaneSwitch.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin;
         [airplaneSwitch addTarget:self action: @selector(airplaneButtonSwitched:) forControlEvents:UIControlEventValueChanged];
-        [_view addSubview:airplaneSwitch];
+        [mainView addSubview:airplaneSwitch];
     }
-    
-    return _view;
+
+    return mainView;
+}
+
+- (void)dealloc
+{
+    [orientationSwitch release];
+    [wifiSwitch release];
+    [bluetoothSwitch release];
+    [airplaneSwitch release];
+    [mainView release];
+    [super dealloc];
+}
+
+- (void)viewDidAppear
+{
+    [wifiSwitch setOn:[wifiManager wiFiEnabled] animated:NO];
+    [orientationSwitch setOn:[orientationLockManager isLocked] animated:NO];
+    [bluetoothSwitch setOn:[bluetoothManager enabled] animated:NO];
+    [airplaneSwitch setOn:[telephonyManager isInAirplaneMode] animated:NO];
 }
 
 - (void)flashlightButtonSwitched:(NCSwitch *)sw
@@ -103,40 +118,26 @@ CGSize ss = CGSizeMake(74, 29);
     [device unlockForConfiguration];
 }
 
-- (void)orientationButtonSwitched:(id)sender
+- (void)orientationButtonSwitched:(NCSwitch *)sw
 {
-    [[objc_getClass("SBOrientationLockManager") sharedInstance] lock:[(NCSwitch *)sender isOn]];
+    [orientationLockManager lock:[sw isOn]];
 }
 
-- (void)wifiButtonSwitched:(id)sender
+- (void)wifiButtonSwitched:(NCSwitch *)sw
 {
-    [[objc_getClass("SBWiFiManager") sharedInstance] setWiFiEnabled:[(NCSwitch *)sender isOn]];
+    [wifiManager setWiFiEnabled:[sw isOn]];
 }
 
-- (void)bluetoothButtonSwitched:(id)sender
+- (void)bluetoothButtonSwitched:(NCSwitch *)sw
 {
-    [(BluetoothManager *)[objc_getClass("BluetoothManager") sharedInstance] setEnabled:[(NCSwitch *)sender isOn]];
+    [bluetoothManager setEnabled:[sw isOn]];
 }
 
-- (void)airplaneButtonSwitched:(id)sender
+- (void)airplaneButtonSwitched:(NCSwitch *)sw
 {
-    [[objc_getClass("SBTelephonyManager") sharedTelephonyManager] setIsInAirplaneMode:[(NCSwitch *)sender isOn]];
-    [wifiSwitch setOn:[[objc_getClass("SBWiFiManager") sharedInstance] wiFiEnabled] animated:YES];
-    [bluetoothSwitch setOn:[[objc_getClass("BluetoothManager") sharedInstance] enabled] animated:YES];
-}
-
-
-- (void)viewDidAppear
-{
-    [wifiSwitch setOn:[[objc_getClass("SBWiFiManager") sharedInstance] wiFiEnabled] animated:NO];
-    [orientationSwitch setOn:[[objc_getClass("SBOrientationLockManager") sharedInstance] isLocked] animated:NO];
-    [bluetoothSwitch setOn:[[objc_getClass("BluetoothManager") sharedInstance] enabled] animated:NO];
-    [airplaneSwitch setOn:[[objc_getClass("SBTelephonyManager") sharedTelephonyManager] isInAirplaneMode] animated:NO];
-}
-
-- (float)viewHeight
-{
-    return 2*29 + 4*margin.height;
+    [telephonyManager setIsInAirplaneMode:[sw isOn]];
+    [wifiSwitch setOn:[wifiManager wiFiEnabled] animated:YES];
+    [bluetoothSwitch setOn:[bluetoothManager enabled] animated:YES];
 }
 
 @end
