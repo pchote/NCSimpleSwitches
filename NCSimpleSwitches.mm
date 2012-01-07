@@ -12,7 +12,6 @@
 @interface ButtonTestController : NSObject <BBWeeAppController>
 {
     UIView *_view;
-    AVCaptureSession *flashlightSession;
     NCSwitch *flashlightSwitch;
     NCSwitch *orientationSwitch;
     NCSwitch *wifiSwitch;
@@ -34,7 +33,6 @@
 
 - (void)dealloc
 {
-    [flashlightSwitch release];
     [orientationSwitch release];
     [wifiSwitch release];
     [bluetoothSwitch release];
@@ -55,10 +53,17 @@ CGSize ss = CGSizeMake(74, 29);
 
 
         // Flashlight
-        flashlightSwitch = [[NCSwitch alloc] initWithFrame:CGRectMake(margin.width, margin.height, ss.width, ss.height) thumbImage: [UIImage imageWithContentsOfFile:@"/System/Library/WeeAppPlugins/NCSimpleSwitches.bundle/icon_torch.png"]];
-        flashlightSwitch.autoresizingMask = UIViewAutoresizingFlexibleRightMargin;
-        [flashlightSwitch addTarget:self action: @selector(flashlightButtonSwitched:) forControlEvents:UIControlEventValueChanged];
-        [_view addSubview:flashlightSwitch];
+        {
+            AVCaptureDevice *device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
+
+            if ([device hasTorch] && [device hasFlash])
+            {
+                flashlightSwitch = [[NCSwitch alloc] initWithFrame:CGRectMake(margin.width, margin.height, ss.width, ss.height) thumbImage: [UIImage imageWithContentsOfFile:@"/System/Library/WeeAppPlugins/NCSimpleSwitches.bundle/icon_torch.png"]];
+                flashlightSwitch.autoresizingMask = UIViewAutoresizingFlexibleRightMargin;
+                [flashlightSwitch addTarget:self action: @selector(flashlightButtonSwitched:) forControlEvents:UIControlEventValueChanged];
+                [_view addSubview:flashlightSwitch];
+            }
+        }
 
         // Orientation Lock
         orientationSwitch = [[NCSwitch alloc] initWithFrame:CGRectMake(160 - ss.width/2, margin.height, ss.width, ss.height) thumbImage: [UIImage imageWithContentsOfFile:@"/System/Library/WeeAppPlugins/NCSimpleSwitches.bundle/icon_rotate.png"]];
@@ -88,32 +93,14 @@ CGSize ss = CGSizeMake(74, 29);
     return _view;
 }
 
-- (void)flashlightButtonSwitched:(id)sender
+- (void)flashlightButtonSwitched:(NCSwitch *)sw
 {
-    NCSwitch *sw = (NCSwitch *)sender;
+    BOOL isOn = [sw isOn];
     AVCaptureDevice *device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
-    if (![device hasTorch])
-        return;
-
-    if ([sw isOn] && device.torchMode == AVCaptureTorchModeOff)
-    {
-        flashlightSession = [[AVCaptureSession alloc] init];
-        [flashlightSession addInput:[AVCaptureDeviceInput deviceInputWithDevice:device error: nil]];
-        [flashlightSession addOutput:[[[AVCaptureVideoDataOutput alloc] init] autorelease]];
-
-        [flashlightSession beginConfiguration];
-        [device lockForConfiguration:nil];
-        [device setTorchMode:AVCaptureTorchModeOn];
-        [device unlockForConfiguration];
-
-        [flashlightSession commitConfiguration];
-        [flashlightSession startRunning];
-    }
-    else if (![sw isOn] && device.torchMode == AVCaptureTorchModeOn)
-    {
-        [flashlightSession stopRunning];
-        [flashlightSession release], flashlightSession = nil;
-    }
+    [device lockForConfiguration:nil];
+    [device setTorchMode: isOn ? AVCaptureTorchModeOn : AVCaptureTorchModeOff];
+    [device setFlashMode: isOn ? AVCaptureFlashModeOn : AVCaptureFlashModeOff];
+    [device unlockForConfiguration];
 }
 
 - (void)orientationButtonSwitched:(id)sender
